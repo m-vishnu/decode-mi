@@ -47,6 +47,7 @@ def split_mouse_runs(df: pd.DataFrame):
     for i in range(1, len(df)):
         if df.iloc[i]["Position_cm"] - df.iloc[i - 1]["Position_cm"] < - 100:
             dfs.append(df.iloc[prev_lap:i])
+            prev_lap = i
     return dfs
 
 
