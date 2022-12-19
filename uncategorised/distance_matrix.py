@@ -14,8 +14,11 @@ from tslearn.utils import to_time_series_dataset
 warnings.filterwarnings('ignore')
 import pickle
 from dtw import *
+import os
 
-def pickle_object(o, filepath)
+def pickle_object(o, filepath):
+    with open(filepath, 'wb') as f:
+        pickle.dump(o, f)
 
 
 def temp_plotter(data):
@@ -56,7 +59,7 @@ all_laps_diff = get_diffed_laps(all_laps.copy(), diff_col='Position_cm')
 
 def dm(lap_list, x_cols=['Position_cm', 'Licks'], step_pattern="symmetric2", window_type = 'slantedband', window_args = {'window_size': 50}):
     d_mx = np.zeros(len(lap_list) ** 2).reshape(len(lap_list), -1)
-    for i in range(len(lap_list)):
+    for i in tqdm(range(len(lap_list))):
         for j in range(i+1, len(lap_list)):
             try:
                 d_mx[i][j] = dtw(lap_list[i][x_cols], lap_list[j][x_cols], step_pattern=step_pattern,
@@ -70,6 +73,10 @@ def dm(lap_list, x_cols=['Position_cm', 'Licks'], step_pattern="symmetric2", win
                 d_mx[j][i] = np.inf
     return d_mx
 
-diffed_dwt = dm(all_laps_diff, x_cols=['Position_cm'])
 
-undiffed_dwt = dm(all_laps, x_cols=['Position_cm'])
+diffed_dtw = dm(all_laps_diff, x_cols=['Position_cm'])
+pickle_object(diffed_dtw, os.path.join(os.getcwd(), 'diffed_dtw.pkl'))
+print("Diffed DTW complete")
+
+undiffed_dtw = dm(all_laps, x_cols=['Position_cm'])
+pickle_object(diffed_dtw, os.path.join(os.getcwd(), 'undiffed_dtw.pkl'))
