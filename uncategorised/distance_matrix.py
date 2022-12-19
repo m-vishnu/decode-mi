@@ -15,6 +15,8 @@ warnings.filterwarnings('ignore')
 import pickle
 from dtw import *
 
+def pickle_object(o, filepath)
+
 
 def temp_plotter(data):
     plt.plot(data)
@@ -69,4 +71,5 @@ def dm(lap_list, x_cols=['Position_cm', 'Licks'], step_pattern="symmetric2", win
     return d_mx
 
 diffed_dwt = dm(all_laps_diff, x_cols=['Position_cm'])
+
 undiffed_dwt = dm(all_laps, x_cols=['Position_cm'])
