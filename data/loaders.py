@@ -12,7 +12,10 @@ class Day0to6_Loader:
                                                                         replace_str=config['DEFAULT'][
                                                                             'replace_path_str'])
         self.unsplit_behavioural_data = None
+        self.unsplit_behavioural_metadata = None
+
         self.split_behavioural_data = None
+        self.split_behavioural_metadata = None
 
     def get_all_behavioural_data_dict(self, split_laps: bool) -> dict:
         """
@@ -21,14 +24,22 @@ class Day0to6_Loader:
         :return: a dictionary of dataframes or a dictionary with a list of dataframes
         """
         if split_laps:
-            split_laps_data = {x[0]: self._split_mouse_runs(self._load_h5py_file(x[1])) for x in
-                               self.mouse_metadata[['mouse_id', 'filename']].values}
+            split_laps_data = {x[0]: self._split_mouse_runs(self._load_h5py_file(x[-1])) for x in
+                               self.mouse_metadata.values}
+            split_laps_metadata = {x[0]: {'type': x[1], "group": x[2], "day": x[3], "filename": x[4]} for x in
+                                   self.mouse_metadata.values}
             self.split_behavioural_data = split_laps_data
-            return split_laps_data
+            self.split_behavioural_metadata = split_laps_metadata
+
+            return split_laps_data, split_laps_metadata
         else:
             all_laps_data = {x[0]: self._load_h5py_file(x[1]) for x in
                              self.mouse_metadata[['mouse_id', 'filename']].values}
+            all_laps_metadata = {x[0]: {'type': x[1], 'group': x[2], 'day': x[3], 'filename': x[4]} for x in
+                                 self.mouse_metadata.values}
             self.unsplit_behavioural_data = all_laps_data
+            self.unsplit_behavioural_metadata = all_laps_metadata
+
             return all_laps_data
 
     def get_behavioural_data_subset(self, mouse_ids: list = None, days: list = None, groups: list = None,
@@ -94,7 +105,8 @@ class Day0to6_Loader:
         """
         return pd.read_hdf(filepath)
 
-    def _split_mouse_runs(self, df: pd.DataFrame, ignore_first_lap: bool = True, ignore_truncated_first_lap: bool = True, ignore_truncated_first_lap_threshold = 50):
+    def _split_mouse_runs(self, df: pd.DataFrame, ignore_first_lap: bool = True,
+                          ignore_truncated_first_lap: bool = True, ignore_truncated_first_lap_threshold=50):
         """
         Takes the behavioural data, and splits into an array of DataFrames. Each item in the list is one run of the
         treadmill (0-360cm)
@@ -106,13 +118,13 @@ class Day0to6_Loader:
 
         n_laps = int(df['Laps'].max() + 1)
         if ignore_first_lap:
-            for i in range(1,n_laps):
-                dfs.append(df[df['Laps']==i])
+            for i in range(1, n_laps):
+                dfs.append(df[df['Laps'] == i])
         elif ignore_truncated_first_lap:
             if df.iloc[0]['Position_cm'] > ignore_truncated_first_lap_threshold:
                 skip_first_lap = True
             if skip_first_lap:
-                for lap in range(1,n_laps):
+                for lap in range(1, n_laps):
                     dfs.append(df[df['Laps'] == lap])
             else:
                 for lap in range(n_laps):
