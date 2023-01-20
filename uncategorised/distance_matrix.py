@@ -1,3 +1,5 @@
+import copy
+
 import pandas as pd
 import os
 from matplotlib import pyplot as plt
@@ -13,7 +15,7 @@ from tslearn.utils import to_time_series_dataset
 
 warnings.filterwarnings('ignore')
 import pickle
-from dtw import *
+from dtw import dtw, symmetric2
 import os
 
 def pickle_object(o, filepath):
@@ -41,20 +43,23 @@ def get_lap_list_from_mouse_dict(mouse_data: list):
     :return:
     """
     all_mice_data = []
-    for mouse in mouse_data[0]:
-        all_mice_data.extend(mouse_data[0][mouse])
+    for mouse in mouse_data:
+        for item in mouse_data[mouse]:
+            item.insert(column='mouse_id',value=mouse, loc=0)
+            all_mice_data.append(item)
     return all_mice_data
 
 
 config = configparser.ConfigParser()
 config.read('/home/mvishnu/projects/decode/config')
-day0_6_data = dl.Day0to6_Loader(config)
+non_artefact_lap_info = pd.read_csv("/home/mvishnu/Documents/work/DECODE/data/trials_insignificant_artifacts.csv")
+day0_6_data = dl.Day0to6_Loader(config, non_artefact_lap_info)
 
-all_data_unsplit = day0_6_data.get_all_behavioural_data_dict(split_laps=False)
-all_data_split = day0_6_data.get_all_behavioural_data_dict(split_laps=True)
+#all_data_unsplit, unsplit_metadata = day0_6_data.get_all_behavioural_data_dict(split_laps=False)
+all_data_split, split_metadata = day0_6_data.get_all_behavioural_data_dict(split_laps=True)
 
 all_laps = get_lap_list_from_mouse_dict(all_data_split)
-all_laps_diff = get_diffed_laps(all_laps.copy(), diff_col='Position_cm')
+all_laps_diff = get_diffed_laps(copy.deepcopy(all_laps), diff_col='Position_cm')
 
 
 def dm(lap_list, x_cols=['Position_cm', 'Licks'], step_pattern="symmetric2", window_type = 'slantedband', window_args = {'window_size': 50}):
@@ -80,3 +85,5 @@ print("Diffed DTW complete")
 
 undiffed_dtw = dm(all_laps, x_cols=['Position_cm'])
 pickle_object(diffed_dtw, os.path.join(os.getcwd(), 'undiffed_dtw.pkl'))
+
+import numpy as np

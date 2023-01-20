@@ -6,7 +6,7 @@ import configparser
 
 
 class Day0to6_Loader:
-    def __init__(self, config: configparser):
+    def __init__(self, config: configparser, include_only_lap_info: pd.DataFrame = None):
         self.config = config
         self.mouse_metadata: pd.DataFrame = self._get_mouse_metadata_df(root_folder=config['DEFAULT']['data_root'],
                                                                         replace_str=config['DEFAULT'][
@@ -16,6 +16,33 @@ class Day0to6_Loader:
 
         self.split_behavioural_data = None
         self.split_behavioural_metadata = None
+
+        if include_only_lap_info is None:
+            self.included_data_df = "all"
+        else:
+            self.included_data_df = include_only_lap_info
+            self.mouse_metadata = self.get_pruned_metadata_to_include_df()
+
+    def get_pruned_metadata_to_include_df(self):
+        included_data_df = self.included_data_df.copy()
+        included_mouse_ids = included_data_df['mouse_index'].sort_values().unique()
+
+        # Exclude mouse_ids not in include_df
+        pruned_metadata = self.mouse_metadata.copy()
+        pruned_metadata_mouse_ids = pruned_metadata[pruned_metadata['mouse_id'].isin(included_mouse_ids)]
+
+        # for each (included) mouse, exclude laps not in include_df
+        pruned_metadata_mouse_ids_lap_ids = pruned_metadata_mouse_ids.iloc[0:0]
+        for mouse_to_include in included_mouse_ids:
+            days_to_include = included_data_df[included_data_df['mouse_index'] == mouse_to_include][
+                'day'].sort_values().unique()
+
+            mouse_data = pruned_metadata_mouse_ids[pruned_metadata_mouse_ids['mouse_id'] == mouse_to_include]
+            mouse_data = mouse_data[mouse_data['day'].isin(days_to_include)]
+
+            pruned_metadata_mouse_ids_lap_ids = pd.concat([pruned_metadata_mouse_ids_lap_ids, mouse_data])
+
+        return pruned_metadata_mouse_ids_lap_ids
 
     def get_all_behavioural_data_dict(self, split_laps: bool) -> dict:
         """
@@ -28,19 +55,29 @@ class Day0to6_Loader:
                                self.mouse_metadata.values}
             split_laps_metadata = {x[0]: {'type': x[1], "group": x[2], "day": x[3], "filename": x[4]} for x in
                                    self.mouse_metadata.values}
+            split_laps_data = {x[0]: self._split_mouse_runs(
+                self.add_metadata_to_lap_df(self._load_h5py_file(x[-1]), type=x[1], group=x[2], day=x[3])) for x in
+                self.mouse_metadata.values}
             self.split_behavioural_data = split_laps_data
             self.split_behavioural_metadata = split_laps_metadata
 
             return split_laps_data, split_laps_metadata
         else:
-            all_laps_data = {x[0]: self._load_h5py_file(x[1]) for x in
-                             self.mouse_metadata[['mouse_id', 'filename']].values}
+            all_laps_data = {
+                x[0]: self.add_metadata_to_lap_df(self._load_h5py_file(x[-1]), type=x[1], group=x[2], day=x[3]) for x in
+                self.mouse_metadata.values}
             all_laps_metadata = {x[0]: {'type': x[1], 'group': x[2], 'day': x[3], 'filename': x[4]} for x in
                                  self.mouse_metadata.values}
             self.unsplit_behavioural_data = all_laps_data
             self.unsplit_behavioural_metadata = all_laps_metadata
 
-            return all_laps_data
+            return all_laps_data, all_laps_metadata
+
+    def add_metadata_to_lap_df(self, df: pd.DataFrame, type, group, day):
+        df['type'] = type
+        df['group'] = group
+        df['day'] = day
+        return df
 
     def get_behavioural_data_subset(self, mouse_ids: list = None, days: list = None, groups: list = None,
                                     filenames: list = None, invert_selection=False, split_laps=False):
