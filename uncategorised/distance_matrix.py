@@ -10,6 +10,7 @@ from tqdm import tqdm
 import numpy as np
 import stumpy
 import tslearn
+from tslearn.metrics import dtw
 from tslearn.clustering import TimeSeriesKMeans, silhouette_score
 from tslearn.utils import to_time_series_dataset
 
